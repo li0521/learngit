@@ -6,18 +6,8 @@ import requests
 import sys
 import imp
 imp.reload(sys)
-#初始参数
-#studentnumber = input("学号：")
-#password = input("密码：")
-print('        ***************西南民大自动评教1.0***************')
-print('                                         by 软联1501 XXX')
-studentnumber = input('学号：')
-password = input('密码：')
-index = 0
-#访问教务系统
-s = requests.session()
-url = "http://211.83.241.245/default2.aspx"
-userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36"
+
+#匹配正确评教链接
 def myfilter(L):
     if (L.find('xsjxpj.aspx')):
         return False    
@@ -28,19 +18,10 @@ def getInfor(response,xpath):
         selector = etree.HTML(content)
         infor = selector.xpath(xpath)
         return infor
-def doEvaluate(response,index):
-    head = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Encoding': 'gzip, deflate',
-            'Accept-Language': 'zh-CN,zh;q=0.8',
-            'Connection': 'keep - alive',
-            'Host': '211.83.241.245',
-            'Referer':'http://211.83.241.245/xs_main.aspx?xh='+studentnumber,
-            'Upgrade-Insecure-Requests': '1',
-            'User-Agent': userAgent
-        }
+#评教并保存
+def doEvaluate(response,index,head):
     print('正在评价' + li_kc_name[index] + '...')
-    response = s.post('http://211.83.241.245/'+ li[index], data=None, headers=head)
+    response = s.post('http://211.83.241.245/'+ li[index],data = None, headers=head)
     __VIEWSTATE = getInfor(response,'//*[@name="__VIEWSTATE"]/@value')
     __VIEWSTATEGENERATOR = getInfor(response,'//*[@name="__VIEWSTATEGENERATOR"]/@value')
     post_data = {
@@ -58,12 +39,18 @@ def doEvaluate(response,index):
         post_data.update({'DataGrid1:_ctl' + str(i) + ':JS1': u'5(优秀)'.encode('gb2312')})
         post_data.update({'DataGrid1:_ctl' + str(i) + ':txtjs1':''})
     response = s.post('http://211.83.241.245/'+ li[index], data=post_data, headers=head)
-    
 
+    
+print('        ***************西南民大自动评教1.0***************')
+print('                                         by 软联1501 XXX')
+studentnumber = input('学号：')
+password = input('密码：')
+index = 0
+s = requests.session()
+url = "http://211.83.241.245/default2.aspx"
+userAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36"
 response = s.get(url)
-# 使用正则表达式获取 __VIEWSTATE
-# __VIEWSTATE = re.findall("name=\"__VIEWSTATE\" value=\"(.*?)\"",response.content)[0]
-# 使用xpath获取__VIEWSTATE
+# 使用xpath获取__VIEWSTATE，__VIEWSTATEGENERATOR
 selector = etree.HTML(response.content)
 __VIEWSTATE = selector.xpath('//*[@id="form1"]/input/@value')[0]
 __VIEWSTATEGENERATOR = selector.xpath('//*[@id="form1"]/input/@value')[1]
@@ -99,8 +86,6 @@ headers = {
     }
     #登陆教务系统
 response = s.post(url,data=data,headers=headers)
-cookies = s.cookies
-#print(response.content.decode('gbk'))
 #获取学生基本信息
 try:
     text = getInfor(response,'//*[@id="xhxm"]/text()')[0]
@@ -108,12 +93,10 @@ except IndexError:
     print('验证码或密码错误！请重试')
     x = input('按任意键退出...')
 if(text != None):
-    
     studentname = text
     print ('成功进入教务系统！')
     print (studentname)
-pj_url=[]
-#print(response.content.decode('gbk'))
+#获取评教链接及课程名
 li = getInfor(response,'//*[@class="sub"]/li/a/@href')
 li = li[4:]
 li_kc_name = getInfor(response,'//*[@class="sub"]/li/a/text()')
@@ -121,7 +104,6 @@ li_kc_name = li_kc_name[4:]
 li = list(filter(myfilter,li))
 li_kc_name = li_kc_name[:len(li)]
 xh=[]
-
 for i in range(len(li)):
     xh.append(li[i][17:50])
 head = {
@@ -139,10 +121,12 @@ try:
 except IndexError:
     print('已完成评教！无需评教')
     x = input('按任意键退出...')
+#根据课程数量进行评教并保存
 for i in range(len(li)):
-    doEvaluate(response,index)
+    doEvaluate(response,index,head)
     index = index + 1
-response = s.post('http://211.83.241.245/'+ li[index - 1], data=None, headers=head)
+#提交
+response = s.post('http://211.83.241.245/'+ li[index - 1],data = None, headers = head)
 __VIEWSTATE = getInfor(response,'//*[@name="__VIEWSTATE"]/@value')
 __VIEWSTATEGENERATOR = getInfor(response,'//*[@name="__VIEWSTATEGENERATOR"]/@value')
 post_data = {
